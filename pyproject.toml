@@ -1,0 +1,63 @@
+
+[project]
+name = "deep-toolkit"
+version = "0.1.0"
+description = "toolkit for training pytorch models"
+authors = [
+    {name = "R.Grouls", email = "Raoul.Grouls@han.nl"},
+]
+dependencies = [
+    "gin-config>=0.5.0",
+    "numpy>=1.25.0",
+    "torch>=2.0.1",
+    "loguru>=0.7.0",
+    "ray[tune]>=2.5.1",
+    "tqdm>=4.65.0",
+    "pydantic>=1.10.9",
+    "torchvision>=0.15.2",
+    "torchtext>=0.15.2",
+    "torch-tb-profiler>=0.4.1",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.optional-dependencies]
+lint = [
+    "Flake8-pyproject>=1.2.3",
+    "pep8-naming>=0.13.3",
+    "flake8-annotations>=3.0.1",
+    "black>=23.3.0",
+    "flake8>=6.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.4.1",
+]
+tuning = [
+    "mlflow>=2.4.1",
+    "bayesian-optimization>=1.4.3",
+    "hpbandster>=0.7.4",
+    "configspace>=0.7.1",
+]
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.flake8]
+ignore = ["W503", "ANN101", "ANN002", "ANN003"]
+max-line-length = 88
+max-complexity = 18
+exclude = ["__init__.py", "tests/*", "docs/*", "examples/*", "scripts/*"]
+select = "C,E,F,W,B,B950"
+extend-ignore = "E203, E501"
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+use_parentheses = true
+line_length = 88
+
+[tool.mypy]
+ignore_missing_imports = true
+strict_optional = true
+warn_unreachable = true
+pretty = true
