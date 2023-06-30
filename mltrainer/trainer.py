@@ -11,7 +11,7 @@ from ray import tune
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from deeptoolkit.settings import ReportTypes, TrainerSettings
+from mltrainer import ReportTypes, TrainerSettings
 
 
 def write_gin(dir: Path, txt: str) -> None:
