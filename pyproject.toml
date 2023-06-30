@@ -1,11 +1,27 @@
 
 [project]
-name = "deep-toolkit"
-version = "0.1.0"
+name = "mltrainer"
+version = "0.1.1"
 description = "toolkit for training pytorch models"
+
 authors = [
     {name = "R.Grouls", email = "Raoul.Grouls@han.nl"},
 ]
+
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tools.urls]
+GitHub = "https://github.com/raoulg/mltrainer"
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.10",
+    "Typing :: Typed",
+]
+
 dependencies = [
     "gin-config>=0.5.0",
     "numpy>=1.25.0",
@@ -18,9 +34,6 @@ dependencies = [
     "torchtext>=0.15.2",
     "torch-tb-profiler>=0.4.1",
 ]
-requires-python = ">=3.10"
-readme = "README.md"
-license = {text = "MIT"}
 
 [project.optional-dependencies]
 lint = [
@@ -38,6 +51,8 @@ tuning = [
     "hpbandster>=0.7.4",
     "configspace>=0.7.1",
 ]
+
+
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
@@ -61,3 +76,4 @@ ignore_missing_imports = true
 strict_optional = true
 warn_unreachable = true
 pretty = true
+

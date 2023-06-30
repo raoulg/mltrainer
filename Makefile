@@ -1,7 +1,7 @@
 format:
-	black deeptoolkit
-	isort deeptoolkit
+	black mltrainer
+	isort mltrainer
 
 lint:
-	flake8 deeptoolkit
-	mypy deeptoolkit
+	flake8 mltrainer
+	mypy mltrainer
