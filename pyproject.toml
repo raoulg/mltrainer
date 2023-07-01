@@ -1,7 +1,7 @@
 
 [project]
 name = "mltrainer"
-version = "0.1.5"
+version = "0.1.6"
 description = "toolkit for training pytorch models"
 
 authors = [
@@ -36,14 +36,11 @@ dependencies = [
     "bayesian-optimization>=1.4.3",
 ]
 
-[project.pdm.dev-dependencies]
+
+[project.optional-dependencies]
 lint = [
-    "Flake8-pyproject>=1.2.3",
-    "pep8-naming>=0.13.3",
-    "flake8-annotations>=3.0.1",
+    "ruff>=0.0.275",
     "black>=23.3.0",
-    "flake8>=6.0.0",
-    "isort>=5.12.0",
     "mypy>=1.4.1",
 ]
 
@@ -54,19 +51,6 @@ build-backend = "pdm.backend"
 [tools.urls]
 GitHub = "https://github.com/raoulg/mltrainer"
 
-[tool.flake8]
-ignore = ["W503", "ANN101", "ANN002", "ANN003"]
-max-line-length = 88
-max-complexity = 18
-exclude = ["__init__.py", "tests/*", "docs/*", "examples/*", "scripts/*"]
-select = "C,E,F,W,B,B950"
-extend-ignore = "E203, E501"
-
-[tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-use_parentheses = true
-line_length = 88
 
 [tool.mypy]
 ignore_missing_imports = true
