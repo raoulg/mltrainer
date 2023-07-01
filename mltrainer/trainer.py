@@ -5,9 +5,9 @@ from typing import Callable, Dict, Iterator, Optional, Tuple
 import gin
 import mlflow
 # needed to make summarywriter load without error
-import torch
 from loguru import logger
 from ray import tune
+import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -186,10 +186,10 @@ class EarlyStopping:
             log_dir (Path): location to save checkpoint to.
             patience (int): How long to wait after last time validation loss improved.
                             Default: 7
-            verbose (bool): If True, prints a message for each validation loss improvement.
-                            Default: False
-            delta (float): Minimum change in the monitored quantity to qualify as an improvement.
-                            Default: 0.0
+            verbose (bool): If True, prints a message for each validation loss
+            improvement. Default: False
+            delta (float): Minimum change in the monitored quantity to qualify as
+            an improvement. Default: 0.0
         """
         self.patience = patience
         self.verbose = verbose
@@ -211,7 +211,8 @@ class EarlyStopping:
             # the previous best (with a delta) it is considered not to improve.
             self.counter += 1
             logger.info(
-                f"best loss: {self.best_loss:.4f}, current loss {val_loss:.4f}. Counter {self.counter}/{self.patience}."
+                f"best loss: {self.best_loss:.4f}, current loss {val_loss:.4f}."
+                f"Counter {self.counter}/{self.patience}."
             )
             if self.counter >= self.patience:
                 self.early_stop = True
@@ -226,7 +227,8 @@ class EarlyStopping:
         """Saves model when validation loss decrease."""
         if self.verbose:
             logger.info(
-                f"Validation loss ({self.best_loss:.4f} --> {val_loss:.4f}). Saving {self.path} ..."
+                f"Validation loss ({self.best_loss:.4f} --> {val_loss:.4f})."
+                f"Saving {self.path} ..."
             )
         torch.save(model, self.path)
         self.val_loss_min = val_loss

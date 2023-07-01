@@ -4,7 +4,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from loguru import logger
 from pydantic import BaseModel, root_validator
 
 
