@@ -6,7 +6,7 @@ import gin
 import mlflow
 # needed to make summarywriter load without error
 from loguru import logger
-from ray import tune
+import ray
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -143,11 +143,12 @@ class Trainer:
         self.test_loss = test_loss
 
         if ReportTypes.RAY in reporttypes:
-            tune.report(
-                iterations=epoch,
-                train_loss=train_loss,
-                test_loss=test_loss,
+            ray.train.report(
+                {"iterations" : epoch,
+                "train_loss" : train_loss,
+                "test_loss" : test_loss,
                 **metric_dict,
+                }
             )
 
         if ReportTypes.MLFLOW in reporttypes:
