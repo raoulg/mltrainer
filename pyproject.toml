@@ -13,7 +13,7 @@ readme = "README.md"
 license = {text = "MIT"}
 
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Programming Language :: Python",
     "Typing :: Typed",
