@@ -112,7 +112,7 @@ class Trainer:
             loss = self.loss_fn(yhat, y)
             loss.backward()
             self.optimizer.step()
-            train_loss += loss.detach().numpy()
+            train_loss += loss.cpu().detach().numpy()
         train_loss /= train_steps
         return train_loss
 
@@ -124,10 +124,10 @@ class Trainer:
         for _ in range(valid_steps):
             x, y = next(iter(self.validdataloader))
             yhat = self.model(x)
-            test_loss += self.loss_fn(yhat, y).detach().numpy()
+            test_loss += self.loss_fn(yhat, y).cpu().detach().numpy()
             for m in self.settings.metrics:
                 metric_dict[str(m)] = (
-                    metric_dict.get(str(m), 0.0) + m(y, yhat).detach().numpy()
+                    metric_dict.get(str(m), 0.0) + m(y, yhat).cpu().detach().numpy()
                 )
 
         test_loss /= valid_steps
