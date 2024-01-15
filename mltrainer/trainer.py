@@ -124,9 +124,9 @@ class Trainer:
         for _ in range(valid_steps):
             x, y = next(iter(self.validdataloader))
             yhat = self.model(x)
+            test_loss += self.loss_fn(yhat, y).cpu().detach().numpy()
             y = y.cpu().detach().numpy()
             yhat = yhat.cpu().detach().numpy()
-            test_loss += self.loss_fn(yhat, y)
             for m in self.settings.metrics:
                 metric_dict[str(m)] = (
                     metric_dict.get(str(m), 0.0) + m(y, yhat)
