@@ -42,6 +42,7 @@ class Trainer:
         traindataloader: Iterator,
         validdataloader: Iterator,
         scheduler: Optional[Callable],
+        device: Optional[str] = None,
     ) -> None:
         self.model = model
         self.settings = settings
@@ -50,6 +51,10 @@ class Trainer:
         self.optimizer = optimizer
         self.traindataloader = traindataloader
         self.validdataloader = validdataloader
+        self.device = device
+
+        if self.device:
+            self.model.to(self.device)
 
         self.optimizer = optimizer(  # type: ignore
             model.parameters(), **settings.optimizer_kwargs
@@ -107,6 +112,8 @@ class Trainer:
         train_steps = self.settings.train_steps
         for _ in tqdm(range(train_steps), colour="#1e4706"):
             x, y = next(iter(self.traindataloader))
+            if self.device:
+                x, y = x.to(self.device), y.to(self.device)
             self.optimizer.zero_grad()
             yhat = self.model(x)
             loss = self.loss_fn(yhat, y)
@@ -123,6 +130,8 @@ class Trainer:
         metric_dict: Dict[str, float] = {}
         for _ in range(valid_steps):
             x, y = next(iter(self.validdataloader))
+            if self.device:
+                x, y = x.to(self.device), y.to(self.device)
             yhat = self.model(x)
             test_loss += self.loss_fn(yhat, y).cpu().detach().numpy()
             y = y.cpu().detach().numpy()
