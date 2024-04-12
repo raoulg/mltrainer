@@ -3,8 +3,10 @@ from __future__ import annotations
 from typing import Iterator
 
 import torch
+import numpy as np
 
 Tensor = torch.Tensor
+Array = np.ndarray
 
 
 class Metric:
@@ -57,5 +59,5 @@ class Accuracy(Metric):
     def __repr__(self) -> str:
         return "Accuracy"
 
-    def __call__(self, y: Tensor, yhat: Tensor) -> Tensor:
-        return (yhat.argmax(dim=1) == y).sum() / len(yhat)
+    def __call__(self, y: Array, yhat: Array) -> float:
+        return (yhat.argmax(axis=1) == y).sum() / len(yhat)
