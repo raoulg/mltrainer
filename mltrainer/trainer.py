@@ -121,6 +121,9 @@ class Trainer:
             self.optimizer.step()
             train_loss += loss.cpu().detach().numpy()
         train_loss /= train_steps
+        if self.scheduler:
+            self.scheduler.step()
+
         return train_loss
 
     def evalbatches(self) -> Tuple[Dict[str, float], float]:
