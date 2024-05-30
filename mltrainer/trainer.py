@@ -121,8 +121,6 @@ class Trainer:
             self.optimizer.step()
             train_loss += loss.cpu().detach().numpy()
         train_loss /= train_steps
-        if self.scheduler:
-            self.scheduler.step()
 
         return train_loss
 
@@ -145,6 +143,12 @@ class Trainer:
                 )
 
         test_loss /= valid_steps
+
+        if self.scheduler:
+            if self.scheduler.__name__ == "ReduceLROnPlateau":
+                self.scheduler.step(test_loss)
+            else:
+                self.scheduler.step()
         for key in metric_dict:
             metric_dict[str(key)] = metric_dict[str(key)] / valid_steps
         return metric_dict, test_loss
