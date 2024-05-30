@@ -145,7 +145,7 @@ class Trainer:
         test_loss /= valid_steps
 
         if self.scheduler:
-            if self.scheduler.__name__ == "ReduceLROnPlateau":
+            if self.scheduler.__class__.__name__ == "ReduceLROnPlateau":
                 self.scheduler.step(test_loss)
             else:
                 self.scheduler.step()
