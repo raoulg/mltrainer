@@ -3,4 +3,4 @@ from mltrainer.trainer import Trainer
 
 __all__ = ["Trainer", "TrainerSettings", "ReportTypes"]
 
-__version__ = "0.1.127"
+__version__ = "0.1.128"

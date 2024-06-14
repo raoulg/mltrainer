@@ -65,6 +65,8 @@ class Trainer:
             if settings.scheduler_kwargs is None:
                 raise ValueError("Missing 'scheduler_kwargs' in TrainerSettings.")
             self.scheduler = scheduler(self.optimizer, **settings.scheduler_kwargs)
+        else:
+            self.scheduler = None
 
         if settings.earlystop_kwargs is not None:
             logger.info(
