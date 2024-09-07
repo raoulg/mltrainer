@@ -43,6 +43,7 @@ class Trainer:
         validdataloader: Iterator,
         scheduler: Optional[Callable],
         device: Optional[str] = None,
+        hparams: Optional[dict] = None
     ) -> None:
         self.model = model
         self.settings = settings
@@ -52,6 +53,7 @@ class Trainer:
         self.traindataloader = traindataloader
         self.validdataloader = validdataloader
         self.device = device
+        self.hparams = hparams
 
         if self.device:
             self.model.to(self.device)
@@ -156,8 +158,12 @@ class Trainer:
         return metric_dict, test_loss
 
     def report(
-        self, epoch: int, train_loss: float, test_loss: float, metric_dict: Dict
-    ) -> None:
+            self, 
+            epoch: int, 
+            train_loss: float, 
+            test_loss: float, 
+            metric_dict: Dict
+        ) -> None:
         epoch = epoch + self.last_epoch
         reporttypes = self.settings.reporttypes
         self.test_loss = test_loss
@@ -186,6 +192,13 @@ class Trainer:
                 self.writer.add_scalar(f"metric/{m}", metric_dict[m], epoch)
             lr = [group["lr"] for group in self.optimizer.param_groups][0]
             self.writer.add_scalar("learning_rate", lr, epoch)
+            
+            if self.hparams is not None:
+                if epoch == self.settings.epochs - 1:
+                    self.writer.add_hparams(
+                        self.hparams, 
+                        {'hparam/test_loss': test_loss, 'hparam/train_loss': train_loss}
+                    )
 
         metric_scores = [f"{v:.4f}" for v in metric_dict.values()]
         logger.info(
