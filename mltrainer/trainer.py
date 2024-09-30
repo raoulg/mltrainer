@@ -131,18 +131,19 @@ class Trainer:
         valid_steps = self.settings.valid_steps
         test_loss: float = 0.0
         metric_dict: Dict[str, float] = {}
-        for _ in range(valid_steps):
-            x, y = next(iter(self.validdataloader))
-            if self.device:
-                x, y = x.to(self.device), y.to(self.device)
-            yhat = self.model(x)
-            test_loss += self.loss_fn(yhat, y).cpu().detach().numpy()
-            y = y.cpu().detach().numpy()
-            yhat = yhat.cpu().detach().numpy()
-            for m in self.settings.metrics:
-                metric_dict[str(m)] = (
-                    metric_dict.get(str(m), 0.0) + m(y, yhat)
-                )
+        with torch.no_grad():
+            for _ in range(valid_steps):
+                x, y = next(iter(self.validdataloader))
+                if self.device:
+                    x, y = x.to(self.device), y.to(self.device)
+                yhat = self.model(x)
+                test_loss += self.loss_fn(yhat, y).cpu().numpy()
+                y = y.cpu().numpy()
+                yhat = yhat.cpu().numpy()
+                for m in self.settings.metrics:
+                    metric_dict[str(m)] = (
+                        metric_dict.get(str(m), 0.0) + m(y, yhat)
+                    )
 
         test_loss /= valid_steps
 
