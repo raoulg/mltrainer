@@ -31,23 +31,22 @@ dependencies = [
     "torchtext>=0.15.2",
     "torch-tb-profiler>=0.4.1",
     "mlflow>=2.4.1",
-]
-
-
-[project.optional-dependencies]
-lint = [
-    "ruff>=0.0.275",
-    "black>=23.3.0",
-    "mypy>=1.4.1",
+    "tokenizers>=0.20.1",
 ]
 
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tools.urls]
 GitHub = "https://github.com/raoulg/mltrainer"
 
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "ruff>=0.0.275",
+    "black>=23.3.0",
+]
 
 [tool.mypy]
 ignore_missing_imports = true
