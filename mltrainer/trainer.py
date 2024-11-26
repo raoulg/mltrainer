@@ -4,10 +4,11 @@ from typing import Callable, Dict, Iterator, Optional, Tuple
 
 import gin
 import mlflow
-# needed to make summarywriter load without error
-from loguru import logger
 import ray
 import torch
+
+# needed to make summarywriter load without error
+from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -87,6 +88,7 @@ class Trainer:
 
     def loop(self) -> None:
         for epoch in tqdm(range(self.settings.epochs), colour="#1e4706"):
+            self.last_epoch = epoch
             train_loss = self.trainbatches()
             metric_dict, test_loss = self.evalbatches()
             self.report(epoch, train_loss, test_loss, metric_dict)
@@ -106,7 +108,6 @@ class Trainer:
                         "Set to true to retrieve best model."
                     )
                 break
-        self.last_epoch = epoch
 
     def trainbatches(self) -> float:
         self.model.train()
@@ -140,9 +141,7 @@ class Trainer:
             y = y.cpu().detach().numpy()
             yhat = yhat.cpu().detach().numpy()
             for m in self.settings.metrics:
-                metric_dict[str(m)] = (
-                    metric_dict.get(str(m), 0.0) + m(y, yhat)
-                )
+                metric_dict[str(m)] = metric_dict.get(str(m), 0.0) + m(y, yhat)
 
         test_loss /= valid_steps
 
@@ -164,10 +163,11 @@ class Trainer:
 
         if ReportTypes.RAY in reporttypes:
             ray.train.report(
-                {"iterations" : epoch,
-                "train_loss" : train_loss,
-                "test_loss" : test_loss,
-                **metric_dict,
+                {
+                    "iterations": epoch,
+                    "train_loss": train_loss,
+                    "test_loss": test_loss,
+                    **metric_dict,
                 }
             )
 

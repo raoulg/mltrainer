@@ -1,18 +1,39 @@
 from __future__ import annotations
+
 import re
 import string
 from collections import Counter, OrderedDict
-from typing import Callable, Optional, Type
-from pydantic import BaseModel
+from typing import Callable, Optional
 
 import gin
+import tokenizers as tk
 import torch
 from loguru import logger
+from pydantic import BaseModel
 from torch.nn.utils.rnn import pad_sequence
 from torchtext.vocab import Vocab, vocab
+
 from mltrainer.preprocessors import PreprocessorProtocol
 
 Tensor = torch.Tensor
+
+
+def buildBPE(corpus: list[str], vocab_size: int) -> tk.Tokenizer:
+    tokenizer = tk.Tokenizer(tk.models.BPE())  # type: ignore
+    trainer = tk.trainers.BpeTrainer(  # type: ignore
+        vocab_size=vocab_size,
+        min_frequency=1,
+        special_tokens=["<pad>", "<s>", "</s>", "<mask>"],
+    )
+
+    # handle spaces better by removing the prefix space
+    tokenizer.pre_tokenizer = tk.pre_tokenizers.ByteLevel(add_prefix_space=False)  # type: ignore
+    tokenizer.decoder = tk.decoders.ByteLevel()  # type: ignore
+
+    # train the BPE model
+    tokenizer.train_from_iterator(corpus, trainer)
+    tokenizer.enable_padding(pad_id=0, pad_token="<pad>")
+    return tokenizer
 
 
 def split_and_flat(corpus: list[str]) -> list[str]:
@@ -85,9 +106,14 @@ class Preprocessor:
         text_ = pad_sequence(text, batch_first=True, padding_value=0)
         return text_, torch.tensor(labels)
 
+
 class BaseTokenizer(PreprocessorProtocol):
     def __init__(
-        self, traindataset, maxvocab, maxtokens, clean_fn,
+        self,
+        traindataset,
+        maxvocab,
+        maxtokens,
+        clean_fn,
     ) -> None:
         self.maxvocab = maxvocab
         self.maxtokens = maxtokens
@@ -146,6 +172,7 @@ class TokenizerSettings(BaseModel):
     maxtokens: int
     clean_fn: Callable
 
+
 class IMDBTokenizer(BaseTokenizer):
     def cast_label(self, label: str) -> int:
         if label == "neg":
@@ -154,10 +181,11 @@ class IMDBTokenizer(BaseTokenizer):
             return 1
 
     @classmethod
-    def fromSettings(cls, traindataset, settings: TokenizerSettings) -> 'IMDBTokenizer':
+    def fromSettings(cls, traindataset, settings: TokenizerSettings) -> "IMDBTokenizer":
         return cls(
             traindataset=traindataset,
             maxvocab=settings.maxvocab,
             maxtokens=settings.maxtokens,
             clean_fn=settings.clean_fn,
         )
+
