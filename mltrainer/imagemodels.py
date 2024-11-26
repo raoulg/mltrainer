@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import gin
 import torch
 from torch import nn
@@ -54,3 +56,80 @@ class CNN(nn.Module):
         x = self.convolutions(x)
         logits = self.dense(x)
         return logits
+
+
+@dataclass
+class CNNConfig:
+    matrixshape: tuple
+    batchsize: int
+    input_channels: int
+    hidden: int
+    kernel_size: int
+    maxpool: int
+    num_layers: int
+    num_classes: int
+
+
+class ConvBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(
+                in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=1
+            ),
+            nn.ReLU(),
+            nn.Conv2d(
+                out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=1
+            ),
+            nn.ReLU(),
+        )
+
+    def forward(self, x):
+        return self.conv(x)
+
+
+class CNNblocks(nn.Module):
+    def __init__(self, config: CNNConfig) -> None:
+        super().__init__()
+        input_channels = config.input_channels
+        kernel_size = config.kernel_size
+        hidden = config.hidden
+        # first convolution
+        self.convolutions = nn.ModuleList(
+            [
+                ConvBlock(input_channels, hidden, kernel_size),
+            ]
+        )
+
+        # additional convolutions
+        pool = config.maxpool
+        num_maxpools = 0
+        for i in range(config.num_layers):
+            self.convolutions.extend(
+                [ConvBlock(hidden, hidden, kernel_size), nn.ReLU()]
+            )
+            # every two layers, add a maxpool
+            if i % 2 == 0:
+                num_maxpools += 1
+                self.convolutions.append(nn.MaxPool2d(pool, pool))
+
+        # let's try to calculate the size of the linear layer
+        # please note that changing stride/padding will change the logic
+        matrix_size = (config.matrixshape[0] // (pool**num_maxpools)) * (
+            config.matrixshape[1] // (pool**num_maxpools)
+        )
+        print(f"Calculated matrix size: {matrix_size}")
+        print(f"Caluclated flatten size: {matrix_size * hidden}")
+
+        self.dense = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(matrix_size * hidden, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, config.num_classes),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        for conv in self.convolutions:
+            x = conv(x)
+        x = self.dense(x)
+        return x
