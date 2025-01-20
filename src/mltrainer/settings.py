@@ -4,8 +4,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, field_validator
 from loguru import logger
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class FileTypes(Enum):
@@ -50,12 +50,11 @@ class TrainerSettings(FormattedBase):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-
     @field_validator("logdir")
     @classmethod
     def check_path(cls, logdir: Path) -> Path:  # noqa: N805
-        if isinstance(logdir, str):
-            logdir = Path(logdir)
+        if isinstance(logdir, str):  # type: ignore
+            logdir = Path(logdir)  # type: ignore
         if not logdir.resolve().exists():  # type: ignore
             logdir.mkdir(parents=True)
             logger.info(f"Created logdir {logdir.absolute()}")

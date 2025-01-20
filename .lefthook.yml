@@ -1,0 +1,28 @@
+pre-commit:
+  commands:
+    black:
+      files: git ls-files
+      glob: '*.{py, ipynb}'
+      run: rye fmt {staged_files}
+      stage_fixed: true
+    ruff:
+      files: git ls-files
+      glob: '*.py'
+      run: ruff check {staged_files} --fix
+    mypy:
+      files: git ls-files
+      glob: '*.py'
+      run: mypy {staged_files}
+
+pre-merge:
+  commands:
+    black:
+      glob: '*.{py, ipynb}'
+      run: rye fmt {all_files}
+      stage_fixed: true
+    ruff:
+      glob: '*.py'
+      run: ruff check {all_files} --fix
+    mypy:
+      glob: '*.py'
+      run: mypy {staged_files}

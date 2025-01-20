@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Iterator
 
-import torch
 import numpy as np
+import torch
 
 Tensor = torch.Tensor
 Array = np.ndarray
@@ -55,7 +55,7 @@ class MAE(Metric):
         return torch.mean(torch.abs(y - yhat))
 
 
-class Accuracy(Metric):
+class Accuracy:
     def __repr__(self) -> str:
         return "Accuracy"
 
