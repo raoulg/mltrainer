@@ -21,15 +21,16 @@ classifiers = [
 
 dependencies = [
     "gin-config>=0.5.0",
-    "numpy>=1.25.0",
-    "torch>=2.0.1",
     "loguru>=0.7.0",
-    "ray[tune]>=2.5.1",
-    "tqdm>=4.65.0",
-    "pydantic>=1.10.9",
-    "torchvision>=0.15.2",
-    "torch-tb-profiler>=0.4.1",
     "mlflow>=2.4.1",
+    "numpy>=1.25.0",
+    "pydantic>=1.10.9",
+    "ray[tune]>=2.5.1",
+    "tensorboard>=2.18.0",
+    "torch>=2.0.1",
+    "torch-tb-profiler>=0.4.1",
+    "torchvision>=0.15.2",
+    "tqdm>=4.65.0",
 ]
 
 [build-system]
@@ -47,13 +48,6 @@ dev = [
     "isort>=5.13.2",
     "mypy>=1.14.1",
     "ruff>=0.9.2",
-]
-
-[tool.rye]
-managed = true
-dev-dependencies = [
-    "ruff>=0.0.275",
-    "black>=23.3.0",
 ]
 
 [tool.mypy]

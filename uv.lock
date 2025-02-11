@@ -763,7 +763,7 @@ wheels = [
 
 [[package]]
 name = "mltrainer"
-version = "0.2"
+version = "0.2b1"
 source = { editable = "." }
 dependencies = [
     { name = "gin-config" },
@@ -772,6 +772,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
     { name = "ray", extra = ["tune"] },
+    { name = "tensorboard" },
     { name = "torch" },
     { name = "torch-tb-profiler" },
     { name = "torchvision" },
@@ -793,6 +794,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.25.0" },
     { name = "pydantic", specifier = ">=1.10.9" },
     { name = "ray", extras = ["tune"], specifier = ">=2.5.1" },
+    { name = "tensorboard", specifier = ">=2.18.0" },
     { name = "torch", specifier = ">=2.0.1" },
     { name = "torch-tb-profiler", specifier = ">=0.4.1" },
     { name = "torchvision", specifier = ">=0.15.2" },
