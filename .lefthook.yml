@@ -1,5 +1,10 @@
 pre-commit:
   commands:
+    isort:
+      files: git ls-files
+      glob: '*.py'
+      run: isort {staged_files}
+      stage_fixed: true
     black:
       files: git ls-files
       glob: '*.{py, ipynb}'
@@ -9,13 +14,19 @@ pre-commit:
       files: git ls-files
       glob: '*.py'
       run: ruff check {staged_files} --fix
+      stage_fixed: true
     mypy:
       files: git ls-files
       glob: '*.py'
       run: mypy {staged_files}
+      stage_fixed: true
 
 pre-merge:
   commands:
+    isort:
+      glob: '*.py'
+      run: isort {all_files}
+      stage_fixed: true
     black:
       glob: '*.{py, ipynb}'
       run: rye fmt {all_files}
@@ -23,6 +34,8 @@ pre-merge:
     ruff:
       glob: '*.py'
       run: ruff check {all_files} --fix
+      stage_fixed: true
     mypy:
       glob: '*.py'
       run: mypy {staged_files}
+      stage_fixed: true
