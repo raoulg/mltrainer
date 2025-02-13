@@ -1,6 +1,5 @@
 from typing import Dict
 
-import gin
 import torch
 from torch import nn
 
@@ -10,6 +9,8 @@ Tensor = torch.Tensor
 class BaseModel(nn.Module):
     def __init__(self, observations: int, horizon: int) -> None:
         super().__init__()
+        self.observations = observations
+        self.horizon = horizon
         self.flatten = nn.Flatten()  # we have 3d data, the linear model wants 2D
         self.linear = nn.Linear(observations, horizon)
 
@@ -19,12 +20,16 @@ class BaseModel(nn.Module):
         return x
 
 
-@gin.configurable
 class BaseRNN(nn.Module):
     def __init__(
         self, input_size: int, hidden_size: int, num_layers: int, horizon: int
     ) -> None:
         super().__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.horizon = horizon
+
         self.rnn = nn.RNN(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -41,13 +46,13 @@ class BaseRNN(nn.Module):
         return yhat
 
 
-@gin.configurable
 class GRUmodel(nn.Module):
     def __init__(
         self,
         config: Dict,
     ) -> None:
         super().__init__()
+        self.config = config
         self.rnn = nn.GRU(
             input_size=config["input_size"],
             hidden_size=config["hidden_size"],
@@ -64,13 +69,13 @@ class GRUmodel(nn.Module):
         return yhat
 
 
-@gin.configurable
 class AttentionGRU(nn.Module):
     def __init__(
         self,
         config: Dict,
     ) -> None:
         super().__init__()
+        self.config = config
         self.rnn = nn.GRU(
             input_size=config["input_size"],
             hidden_size=config["hidden_size"],
@@ -94,13 +99,13 @@ class AttentionGRU(nn.Module):
         return yhat
 
 
-@gin.configurable
 class NLPmodel(nn.Module):
     def __init__(
         self,
         config: Dict,
     ) -> None:
         super().__init__()
+        self.config = config
         self.emb = nn.Embedding(config["vocab"], config["hidden_size"])
         self.rnn = nn.GRU(
             input_size=config["hidden_size"],
@@ -119,13 +124,13 @@ class NLPmodel(nn.Module):
         return yhat
 
 
-@gin.configurable
 class AttentionNLP(nn.Module):
     def __init__(
         self,
         config: Dict,
     ) -> None:
         super().__init__()
+        self.config = config
         self.emb = nn.Embedding(config["vocab"], config["hidden_size"])
         self.rnn = nn.GRU(
             input_size=config["hidden_size"],

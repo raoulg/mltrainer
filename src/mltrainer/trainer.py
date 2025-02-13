@@ -2,23 +2,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, Iterator, Optional, Tuple
 
-import gin
 import mlflow
 import ray
 import torch
-
-# needed to make summarywriter load without error
 from loguru import logger
-from torch.utils.tensorboard import SummaryWriter
+from tomlserializer import TOMLSerializer
+from torch.utils.tensorboard.writer import SummaryWriter
 from tqdm import tqdm
 
 from mltrainer import ReportTypes, TrainerSettings
-
-
-def write_gin(dir: Path, txt: str) -> None:
-    path = dir / "saved_config.gin"
-    with open(path, "w") as file:
-        file.write(txt)
 
 
 def dir_add_timestamp(log_dir: Optional[Path] = None) -> Path:
@@ -83,8 +75,9 @@ class Trainer:
         if ReportTypes.TENSORBOARD in self.settings.reporttypes:
             self.writer = SummaryWriter(log_dir=self.log_dir)
 
-        if ReportTypes.GIN in self.settings.reporttypes:
-            write_gin(self.log_dir, gin.config_str())
+        if ReportTypes.TOML in self.settings.reporttypes:
+            TOMLSerializer.save(model, self.log_dir / "model.toml")
+            TOMLSerializer.save(settings, self.log_dir / "settings.toml")
 
     def loop(self) -> None:
         for epoch in tqdm(range(self.settings.epochs), colour="#1e4706"):
@@ -162,7 +155,7 @@ class Trainer:
         self.test_loss = test_loss
 
         if ReportTypes.RAY in reporttypes:
-            ray.train.report(
+            ray.train.report(  # type: ignore
                 {
                     "iterations": epoch,
                     "train_loss": train_loss,

@@ -1,14 +1,15 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
-import gin
 import torch
 from torch import nn
 
 
-@gin.configurable
 class NeuralNetwork(nn.Module):
     def __init__(self, num_classes: int, units1: int, units2: int) -> None:
         super().__init__()
+        self.num_classes = num_classes
+        self.units1 = units1
+        self.units2 = units2
         self.flatten = nn.Flatten()
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(28 * 28, units1),
@@ -24,12 +25,15 @@ class NeuralNetwork(nn.Module):
         return logits
 
 
-@gin.configurable
 class CNN(nn.Module):
     def __init__(
         self, num_classes: int, kernel_size: int, filter1: int, filter2: int
     ) -> None:
         super().__init__()
+        self.num_classes = num_classes
+        self.kernel_size = kernel_size
+        self.filter1 = filter1
+        self.filter2 = filter2
 
         self.convolutions = nn.Sequential(
             nn.Conv2d(1, filter1, kernel_size=kernel_size, stride=1, padding=1),
@@ -91,6 +95,7 @@ class ConvBlock(nn.Module):
 class CNNblocks(nn.Module):
     def __init__(self, config: CNNConfig) -> None:
         super().__init__()
+        self.config = asdict(config)
         input_channels = config.input_channels
         kernel_size = config.kernel_size
         hidden = config.hidden

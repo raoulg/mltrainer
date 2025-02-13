@@ -1,14 +1,14 @@
 
 [project]
 name = "mltrainer"
-version = "0.2b1"
+version = "0.2b2"
 description = "toolkit for training pytorch models"
 
 authors = [
     {name = "R.Grouls", email = "Raoul.Grouls@han.nl"},
 ]
 
-requires-python = ">=3.10,<3.12"
+requires-python = ">=3.11,<=3.12"
 readme = "README.md"
 license = {text = "MIT"}
 
@@ -20,13 +20,13 @@ classifiers = [
 ]
 
 dependencies = [
-    "gin-config>=0.5.0",
     "loguru>=0.7.0",
     "mlflow>=2.4.1",
     "numpy>=1.25.0",
     "pydantic>=1.10.9",
     "ray[tune]>=2.5.1",
     "tensorboard>=2.18.0",
+    "tomlserializer>=0.1.0",
     "torch>=2.0.1",
     "torch-tb-profiler>=0.4.1",
     "torchvision>=0.15.2",
@@ -47,6 +47,7 @@ GitHub = "https://github.com/raoulg/mltrainer"
 dev = [
     "isort>=5.13.2",
     "mypy>=1.14.1",
+    "pytest>=8.3.4",
     "ruff>=0.9.2",
 ]
 
@@ -56,3 +57,7 @@ strict_optional = true
 warn_unreachable = true
 pretty = true
 
+[tool.pytest.ini_options]
+	filterwarnings = [
+    "ignore::pydantic.PydanticDeprecatedSince20"
+]
