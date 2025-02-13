@@ -1,7 +1,7 @@
 
 [project]
 name = "mltrainer"
-version = "0.2b2"
+version = "0.2"
 description = "toolkit for training pytorch models"
 
 authors = [
