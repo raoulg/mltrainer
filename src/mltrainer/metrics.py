@@ -1,63 +1,85 @@
 from __future__ import annotations
 
-from typing import Iterator
+from abc import ABC, abstractmethod
+from typing import Iterator, Union
 
 import numpy as np
 import torch
 
-Tensor = torch.Tensor
-Array = np.ndarray
+NumericType = Union[torch.Tensor, np.ndarray]
 
 
-class Metric:
+class Metric(ABC):
+    """Base class for all metrics with proper device and type handling"""
+
+    @abstractmethod
+    def _compute(self, y: torch.Tensor, yhat: torch.Tensor) -> torch.Tensor:
+        """Actual metric computation - implemented by subclasses"""
+        pass
+
+    def __call__(self, y: NumericType, yhat: NumericType) -> float:
+        """Handle device/type conversion and return final metric"""
+        # Convert to tensors if needed
+        if isinstance(y, np.ndarray):
+            y = torch.from_numpy(y)
+        if isinstance(yhat, np.ndarray):
+            yhat = torch.from_numpy(yhat)
+
+        # Ensure we're working with the same device
+        device = y.device
+        y = y.to(device)
+        yhat = yhat.to(device)
+
+        # Compute metric
+        result = self._compute(y, yhat)
+
+        # Return as float for consistency
+        return float(result.cpu().detach())
+
+    @abstractmethod
     def __repr__(self) -> str:
-        raise NotImplementedError
+        pass
 
-    def __call__(self, y: Tensor, yhat: Tensor) -> Tensor:
-        raise NotImplementedError
+
+class MAE(Metric):
+    def _compute(self, y: torch.Tensor, yhat: torch.Tensor) -> torch.Tensor:
+        return torch.mean(torch.abs(y - yhat))
+
+    def __repr__(self) -> str:
+        return "MAE"
 
 
 class MASE(Metric):
     def __init__(self, train: Iterator, horizon: int) -> None:
-        self.scale = self.naivenorm(train, horizon)
+        self.horizon = horizon
+        with torch.no_grad():
+            self.scale = self._calculate_scale(train)
+
+    def _calculate_scale(self, train: Iterator) -> torch.Tensor:
+        elist = []
+        streamer = train.stream()  # type: ignore
+        for _ in range(len(train)):  # type: ignore
+            x, y = next(iter(streamer))
+            yhat = self._naive_predict(x)
+            e = torch.mean(torch.abs(y - yhat))
+            elist.append(e)
+        return torch.mean(torch.stack(elist))
+
+    def _naive_predict(self, x: torch.Tensor) -> torch.Tensor:
+        return x[..., -self.horizon :, :].squeeze(-1)
+
+    def _compute(self, y: torch.Tensor, yhat: torch.Tensor) -> torch.Tensor:
+        mae = torch.mean(torch.abs(y - yhat))
+        return mae / self.scale
 
     def __repr__(self) -> str:
         return f"MASE(scale={self.scale:.3f})"
 
-    def naivenorm(self, train: Iterator, horizon: int) -> Tensor:
-        elist = []
-        # TODO fix ignore
-        streamer = train.stream()  # type: ignore
-        for _ in range(len(train)):  # type: ignore
-            x, y = next(iter(streamer))
-            yhat = self.naivepredict(x, horizon)
-            e = self.mae(y, yhat)
-            elist.append(e)
-        return torch.mean(torch.tensor(elist))
 
-    def naivepredict(self, x: Tensor, horizon: int) -> Tensor:
-        assert horizon > 0
-        yhat = x[..., -horizon:, :].squeeze(-1)
-        return yhat
+class Accuracy(Metric):
+    def _compute(self, y: torch.Tensor, yhat: torch.Tensor) -> torch.Tensor:
+        predictions = yhat.argmax(dim=1)
+        return (predictions == y).float().mean()
 
-    def mae(self, y: Tensor, yhat: Tensor) -> Tensor:
-        return torch.mean(torch.abs(y - yhat))
-
-    def __call__(self, y: Tensor, yhat: Tensor) -> Tensor:
-        return self.mae(y, yhat) / self.scale
-
-
-class MAE(Metric):
-    def __repr__(self) -> str:
-        return "MAE"
-
-    def __call__(self, y: Tensor, yhat: Tensor) -> Tensor:
-        return torch.mean(torch.abs(y - yhat))
-
-
-class Accuracy:
     def __repr__(self) -> str:
         return "Accuracy"
-
-    def __call__(self, y: Array, yhat: Array) -> float:
-        return (yhat.argmax(axis=1) == y).sum() / len(yhat)
