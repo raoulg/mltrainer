@@ -68,7 +68,7 @@ trainer.loop()
 The package supports multiple reporting backends:
 
 - 📈 **TENSORBOARD**: Real-time training visualization
-- 📝 **TOML**: Configuration and model architecture serialization
+- 📝 **TOML**: Configuration and model architecture serialization. See https://pypi.org/project/tomlserializer/ for details
 - 📊 **MLFLOW**: Experiment tracking and model management
 - 🔄 **RAY**: Distributed training support
 
