@@ -1,16 +1,18 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, Iterator, Optional, Tuple
+from typing import Callable, Dict, Iterator, Optional, Tuple, Type, TypeVar
 
 import mlflow
 import ray
 import torch
 from loguru import logger
 from tomlserializer import TOMLSerializer
-from torch.utils.tensorboard.writer import SummaryWriter
+from torch.optim import Optimizer
 from tqdm import tqdm
 
 from mltrainer import ReportTypes, TrainerSettings
+
+OptimizerType = TypeVar("OptimizerType", bound=torch.optim.Optimizer)
 
 
 def dir_add_timestamp(log_dir: Optional[Path] = None) -> Path:
@@ -31,7 +33,7 @@ class Trainer:
         model: torch.nn.Module,
         settings: TrainerSettings,
         loss_fn: Callable,
-        optimizer: torch.optim.Optimizer,
+        optimizer: Type[Optimizer],
         traindataloader: Iterator,
         validdataloader: Iterator,
         scheduler: Optional[Callable],
@@ -45,6 +47,7 @@ class Trainer:
         self.traindataloader = traindataloader
         self.validdataloader = validdataloader
         self.device = device
+        self.writer = None
 
         if self.device:
             self.model.to(self.device)
@@ -73,11 +76,18 @@ class Trainer:
             self.early_stopping = None
 
         if ReportTypes.TENSORBOARD in self.settings.reporttypes:
+            from torch.utils.tensorboard.writer import SummaryWriter
+
             self.writer = SummaryWriter(log_dir=self.log_dir)
 
         if ReportTypes.TOML in self.settings.reporttypes:
             TOMLSerializer.save(model, self.log_dir / "model.toml")
             TOMLSerializer.save(settings, self.log_dir / "settings.toml")
+
+    def __del__(self):
+        """Cleanup method to ensure proper resource handling"""
+        if hasattr(self, "writer") and self.writer is not None:
+            self.writer.close()
 
     def loop(self) -> None:
         for epoch in tqdm(range(self.settings.epochs), colour="#1e4706"):
@@ -110,41 +120,51 @@ class Trainer:
             x, y = next(iter(self.traindataloader))
             if self.device:
                 x, y = x.to(self.device), y.to(self.device)
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad()  # type: ignore
             yhat = self.model(x)
             loss = self.loss_fn(yhat, y)
             loss.backward()
-            self.optimizer.step()
+            self.optimizer.step()  # type: ignore
             train_loss += loss.cpu().detach().numpy()
         train_loss /= train_steps
 
         return train_loss
 
     def evalbatches(self) -> Tuple[Dict[str, float], float]:
+        """Evaluate model on validation data with proper device handling"""
         self.model.eval()
         valid_steps = self.settings.valid_steps
         test_loss: float = 0.0
         metric_dict: Dict[str, float] = {}
-        for _ in range(valid_steps):
-            x, y = next(iter(self.validdataloader))
-            if self.device:
-                x, y = x.to(self.device), y.to(self.device)
-            yhat = self.model(x)
-            test_loss += self.loss_fn(yhat, y).cpu().detach().numpy()
-            y = y.cpu().detach().numpy()
-            yhat = yhat.cpu().detach().numpy()
-            for m in self.settings.metrics:
-                metric_dict[str(m)] = metric_dict.get(str(m), 0.0) + m(y, yhat)
 
+        with torch.no_grad():  # Prevent gradient computation during evaluation
+            for _ in range(valid_steps):
+                x, y = next(iter(self.validdataloader))
+                if self.device:
+                    x, y = x.to(self.device), y.to(self.device)
+
+                # Forward pass
+                yhat = self.model(x)
+
+                # Calculate loss (already handled by loss_fn)
+                test_loss += float(self.loss_fn(yhat, y).cpu())
+
+                # Calculate metrics (now handled by metric classes)
+                for m in self.settings.metrics:
+                    metric_dict[str(m)] = metric_dict.get(str(m), 0.0) + m(y, yhat)
+
+        # Average the results
         test_loss /= valid_steps
+        for key in metric_dict:
+            metric_dict[str(key)] = metric_dict[str(key)] / valid_steps
 
+        # Handle scheduler
         if self.scheduler:
             if self.scheduler.__class__.__name__ == "ReduceLROnPlateau":
                 self.scheduler.step(test_loss)
             else:
                 self.scheduler.step()
-        for key in metric_dict:
-            metric_dict[str(key)] = metric_dict[str(key)] / valid_steps
+
         return metric_dict, test_loss
 
     def report(
@@ -169,15 +189,16 @@ class Trainer:
             mlflow.log_metric("Loss/test", test_loss, step=epoch)
             for m in metric_dict:
                 mlflow.log_metric(f"metric/{m}", metric_dict[m], step=epoch)
-            lr = [group["lr"] for group in self.optimizer.param_groups][0]
+            lr = [group["lr"] for group in self.optimizer.param_groups][0]  # type: ignore
             mlflow.log_metric("learning_rate", lr, step=epoch)
 
         if ReportTypes.TENSORBOARD in reporttypes:
+            assert self.writer is not None
             self.writer.add_scalar("Loss/train", train_loss, epoch)
             self.writer.add_scalar("Loss/test", test_loss, epoch)
             for m in metric_dict:
                 self.writer.add_scalar(f"metric/{m}", metric_dict[m], epoch)
-            lr = [group["lr"] for group in self.optimizer.param_groups][0]
+            lr = [group["lr"] for group in self.optimizer.param_groups][0]  # type: ignore
             self.writer.add_scalar("learning_rate", lr, epoch)
 
         metric_scores = [f"{v:.4f}" for v in metric_dict.values()]
