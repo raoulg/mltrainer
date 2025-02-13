@@ -24,6 +24,7 @@ dependencies = [
     "mlflow>=2.4.1",
     "numpy>=1.25.0",
     "pydantic>=1.10.9",
+    "pytest-cov>=6.0.0",
     "ray[tune]>=2.5.1",
     "tensorboard>=2.18.0",
     "tomlserializer>=0.1.0",
@@ -61,3 +62,28 @@ pretty = true
 	filterwarnings = [
     "ignore::pydantic.PydanticDeprecatedSince20"
 ]
+addopts = "-ra -v --cov=mltrainer --cov-report=term-missing"
+testpaths = ["tests"]
+markers = [
+    "tensorboard: marks tests that use tensorboard functionality",
+]
+
+[tool.coverage.run]
+source = ["mltrainer"]
+omit = [
+    "tests/*",
+    "**/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "\\.\\.\\.",
+]
+show_missing = true
+skip_empty = true
