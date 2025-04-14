@@ -5,14 +5,16 @@ from torch import nn
 
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, num_classes: int, units1: int, units2: int) -> None:
+    def __init__(
+        self, features: int, num_classes: int, units1: int, units2: int
+    ) -> None:
         super().__init__()
         self.num_classes = num_classes
         self.units1 = units1
         self.units2 = units2
         self.flatten = nn.Flatten()
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(28 * 28, units1),
+            nn.Linear(features, units1),
             nn.ReLU(),
             nn.Linear(units1, units2),
             nn.ReLU(),
@@ -27,7 +29,12 @@ class NeuralNetwork(nn.Module):
 
 class CNN(nn.Module):
     def __init__(
-        self, num_classes: int, kernel_size: int, filter1: int, filter2: int
+        self,
+        features: int,
+        num_classes: int,
+        kernel_size: int,
+        filter1: int,
+        filter2: int,
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
@@ -36,7 +43,7 @@ class CNN(nn.Module):
         self.filter2 = filter2
 
         self.convolutions = nn.Sequential(
-            nn.Conv2d(1, filter1, kernel_size=kernel_size, stride=1, padding=1),
+            nn.Conv2d(features, filter1, kernel_size=kernel_size, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
             nn.Conv2d(filter1, filter2, kernel_size=kernel_size, stride=1, padding=0),

@@ -8,7 +8,7 @@ pre-commit:
     black:
       files: git ls-files
       glob: '*.{py, ipynb}'
-      run: rye fmt {staged_files}
+      run: ruff format {staged_files}
       stage_fixed: true
     ruff:
       files: git ls-files
@@ -20,6 +20,8 @@ pre-commit:
       glob: '*.py'
       run: mypy {staged_files}
       stage_fixed: true
+    test:
+      run: pytest
 
 pre-merge:
   commands:
@@ -29,7 +31,7 @@ pre-merge:
       stage_fixed: true
     black:
       glob: '*.{py, ipynb}'
-      run: rye fmt {all_files}
+      run: ruff format {all_files}
       stage_fixed: true
     ruff:
       glob: '*.py'
@@ -39,3 +41,5 @@ pre-merge:
       glob: '*.py'
       run: mypy {staged_files}
       stage_fixed: true
+    test:
+      run: pytest
