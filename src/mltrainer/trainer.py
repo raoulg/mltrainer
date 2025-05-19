@@ -102,7 +102,6 @@ class Trainer:
                 logger.info("Interrupting loop due to early stopping patience.")
                 self.last_epoch = epoch
                 if self.early_stopping.save:
-                    logger.info("retrieving best model.")
                     self.model = self.early_stopping.get_best()  # type: ignore
                 else:
                     logger.info(
@@ -270,4 +269,6 @@ class EarlyStopping:
         self.val_loss_min = val_loss
 
     def get_best(self) -> torch.nn.Module:
+        if self.verbose:
+            logger.info(f"retrieving best model from {self.path}")
         return torch.load(self.path, weights_only=False)
