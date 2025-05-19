@@ -110,7 +110,7 @@ class Trainer:
                         "Set to true to retrieve best model."
                     )
                 break
-        self.last_epoch = epoch
+        self.last_epoch += epoch
 
     def trainbatches(self) -> float:
         self.model.train()
@@ -171,6 +171,7 @@ class Trainer:
         self, epoch: int, train_loss: float, test_loss: float, metric_dict: Dict
     ) -> None:
         if (self.last_epoch != 0) and (epoch == 0):
+            self.last_epoch += 1
             logger.info(f"Resuming epochs from previous training at {self.last_epoch}")
         if self.last_epoch != 0:
             epoch += self.last_epoch
@@ -244,7 +245,7 @@ class EarlyStopping:
             self.best_loss = val_loss  # type: ignore
             if self.save:
                 self.save_checkpoint(val_loss, model)
-        elif val_loss >= self.best_loss + self.delta:  # type: ignore
+        elif val_loss + self.delta >= self.best_loss:  # type: ignore
             # we minimize loss. If current loss did not improve
             # the previous best (with a delta) it is considered not to improve.
             self.counter += 1
@@ -256,9 +257,9 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             # if not the first run, and val_loss is smaller, we improved.
-            self.best_loss = val_loss
             if self.save:
                 self.save_checkpoint(val_loss, model)
+            self.best_loss = val_loss
             self.counter = 0
 
     def save_checkpoint(self, val_loss: float, model: torch.nn.Module) -> None:
