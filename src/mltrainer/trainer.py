@@ -270,4 +270,4 @@ class EarlyStopping:
         self.val_loss_min = val_loss
 
     def get_best(self) -> torch.nn.Module:
-        return torch.load(self.path)
+        return torch.load(self.path, weights_only=False)
