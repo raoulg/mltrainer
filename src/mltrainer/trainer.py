@@ -91,7 +91,6 @@ class Trainer:
 
     def loop(self) -> None:
         for epoch in tqdm(range(self.settings.epochs), colour="#1e4706"):
-            self.last_epoch = epoch
             train_loss = self.trainbatches()
             metric_dict, test_loss = self.evalbatches()
             self.report(epoch, train_loss, test_loss, metric_dict)
@@ -170,7 +169,9 @@ class Trainer:
     def report(
         self, epoch: int, train_loss: float, test_loss: float, metric_dict: Dict
     ) -> None:
-        epoch = epoch + self.last_epoch
+        if (self.last_epoch != 0) and (epoch == 0):
+            logger.info(f"Resuming epochs from previous training at {self.last_epoch}")
+            epoch += self.last_epoch
         reporttypes = self.settings.reporttypes
         self.test_loss = test_loss
 
