@@ -90,6 +90,7 @@ class Trainer:
             self.writer.close()
 
     def loop(self) -> None:
+        epoch = 0
         for epoch in tqdm(range(self.settings.epochs), colour="#1e4706"):
             train_loss = self.trainbatches()
             metric_dict, test_loss = self.evalbatches()
@@ -109,6 +110,7 @@ class Trainer:
                         "Set to true to retrieve best model."
                     )
                 break
+        self.last_epoch = epoch
 
     def trainbatches(self) -> float:
         self.model.train()
@@ -170,6 +172,7 @@ class Trainer:
     ) -> None:
         if (self.last_epoch != 0) and (epoch == 0):
             logger.info(f"Resuming epochs from previous training at {self.last_epoch}")
+        if self.last_epoch != 0:
             epoch += self.last_epoch
         reporttypes = self.settings.reporttypes
         self.test_loss = test_loss
