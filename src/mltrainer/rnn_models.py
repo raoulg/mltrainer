@@ -1,9 +1,6 @@
-from typing import Dict
+from dataclasses import dataclass
 
-import torch
-from torch import nn
-
-Tensor = torch.Tensor
+from torch import Tensor, nn
 
 
 class BaseModel(nn.Module):
@@ -18,6 +15,15 @@ class BaseModel(nn.Module):
         x = self.flatten(x)
         x = self.linear(x)
         return x
+
+
+@dataclass
+class ModelConfig:
+    input_size: int
+    hidden_size: int
+    num_layers: int
+    output_size: int
+    dropout: float = 0.0
 
 
 class BaseRNN(nn.Module):
@@ -49,18 +55,18 @@ class BaseRNN(nn.Module):
 class GRUmodel(nn.Module):
     def __init__(
         self,
-        config: Dict,
+        config: ModelConfig,
     ) -> None:
         super().__init__()
         self.config = config
         self.rnn = nn.GRU(
-            input_size=config["input_size"],
-            hidden_size=config["hidden_size"],
-            dropout=config["dropout"],
+            input_size=config.input_size,
+            hidden_size=config.hidden_size,
+            dropout=config.dropout,
             batch_first=True,
-            num_layers=config["num_layers"],
+            num_layers=config.num_layers,
         )
-        self.linear = nn.Linear(config["hidden_size"], config["output_size"])
+        self.linear = nn.Linear(config.hidden_size, config.output_size)
 
     def forward(self, x: Tensor) -> Tensor:
         x, _ = self.rnn(x)
@@ -72,24 +78,24 @@ class GRUmodel(nn.Module):
 class AttentionGRU(nn.Module):
     def __init__(
         self,
-        config: Dict,
+        config: ModelConfig,
     ) -> None:
         super().__init__()
-        self.config = config
+        self.config = config.__dict__
         self.rnn = nn.GRU(
-            input_size=config["input_size"],
-            hidden_size=config["hidden_size"],
-            dropout=config["dropout"],
+            input_size=self.config["input_size"],
+            hidden_size=self.config["hidden_size"],
+            dropout=self.config["dropout"],
             batch_first=True,
-            num_layers=config["num_layers"],
+            num_layers=self.config["num_layers"],
         )
         self.attention = nn.MultiheadAttention(
-            embed_dim=config["hidden_size"],
+            embed_dim=self.config["hidden_size"],
             num_heads=4,
-            dropout=config["dropout"],
+            dropout=self.config["dropout"],
             batch_first=True,
         )
-        self.linear = nn.Linear(config["hidden_size"], config["output_size"])
+        self.linear = nn.Linear(self.config["hidden_size"], self.config["output_size"])
 
     def forward(self, x: Tensor) -> Tensor:
         x, _ = self.rnn(x)
@@ -102,19 +108,19 @@ class AttentionGRU(nn.Module):
 class NLPmodel(nn.Module):
     def __init__(
         self,
-        config: Dict,
+        config: ModelConfig,
     ) -> None:
         super().__init__()
-        self.config = config
-        self.emb = nn.Embedding(config["vocab"], config["hidden_size"])
+        self.config = config.__dict__
+        self.emb = nn.Embedding(self.config["input_size"], self.config["hidden_size"])
         self.rnn = nn.GRU(
-            input_size=config["hidden_size"],
-            hidden_size=config["hidden_size"],
-            dropout=config["dropout"],
+            input_size=self.config["hidden_size"],
+            hidden_size=self.config["hidden_size"],
+            dropout=self.config["dropout"],
             batch_first=True,
-            num_layers=config["num_layers"],
+            num_layers=self.config["num_layers"],
         )
-        self.linear = nn.Linear(config["hidden_size"], config["output_size"])
+        self.linear = nn.Linear(self.config["hidden_size"], self.config["output_size"])
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.emb(x)
@@ -127,25 +133,25 @@ class NLPmodel(nn.Module):
 class AttentionNLP(nn.Module):
     def __init__(
         self,
-        config: Dict,
+        config: ModelConfig,
     ) -> None:
         super().__init__()
-        self.config = config
-        self.emb = nn.Embedding(config["vocab"], config["hidden_size"])
+        self.config = config.__dict__
+        self.emb = nn.Embedding(self.config["input_size"], self.config["hidden_size"])
         self.rnn = nn.GRU(
-            input_size=config["hidden_size"],
-            hidden_size=config["hidden_size"],
-            dropout=config["dropout"],
+            input_size=self.config["hidden_size"],
+            hidden_size=self.config["hidden_size"],
+            dropout=self.config["dropout"],
             batch_first=True,
-            num_layers=config["num_layers"],
+            num_layers=self.config["num_layers"],
         )
         self.attention = nn.MultiheadAttention(
-            embed_dim=config["hidden_size"],
+            embed_dim=self.config["hidden_size"],
             num_heads=4,
-            dropout=config["dropout"],
+            dropout=self.config["dropout"],
             batch_first=True,
         )
-        self.linear = nn.Linear(config["hidden_size"], config["output_size"])
+        self.linear = nn.Linear(self.config["hidden_size"], self.config["output_size"])
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.emb(x)
