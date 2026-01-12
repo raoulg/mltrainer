@@ -83,3 +83,39 @@ class Accuracy(Metric):
 
     def __repr__(self) -> str:
         return "Accuracy"
+
+
+class F1Score(Metric):
+    def __init__(self, average="micro", threshold=0.5, epsilon=1e-7):
+        self.average = average
+        self.threshold = threshold
+        self.epsilon = epsilon
+
+    def _compute(self, y: torch.Tensor, yhat: torch.Tensor) -> torch.Tensor:
+        y_prob = torch.sigmoid(yhat)
+        y_pred = (y_prob > self.threshold).float()
+
+        tp = y_pred * y
+        fp = y_pred * (1 - y)
+        fn = (1 - y_pred) * y
+
+        if self.average == "micro":
+            tp_sum = tp.sum()
+            fp_sum = fp.sum()
+            fn_sum = fn.sum()
+            f1 = (2 * tp_sum) / (2 * tp_sum + fp_sum + fn_sum + self.epsilon)
+
+        elif self.average == "macro":
+            tp_sum = tp.sum(dim=0)
+            fp_sum = fp.sum(dim=0)
+            fn_sum = fn.sum(dim=0)
+            f1_per_class = (2 * tp_sum) / (2 * tp_sum + fp_sum + fn_sum + self.epsilon)
+            f1 = f1_per_class.mean()
+
+        else:
+            raise ValueError("Average must be 'micro' or 'macro'")
+
+        return f1
+
+    def __repr__(self) -> str:
+        return f"F1({self.average})"
