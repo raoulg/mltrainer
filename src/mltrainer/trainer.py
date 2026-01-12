@@ -143,7 +143,11 @@ class Trainer:
             for _ in range(valid_steps):
                 x, y = next(iter(self.validdataloader))
                 if self.device:
-                    x, y = x.to(self.device), y.to(self.device)
+                    if isinstance(x, tuple):
+                        x = tuple(xx.to(self.device) for xx in x)
+                        y = y.to(self.device)
+                    else:
+                        x, y = x.to(self.device), y.to(self.device)
 
                 # Forward pass
                 yhat = self.model(x)
