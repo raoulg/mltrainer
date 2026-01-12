@@ -53,9 +53,9 @@ class TrainerSettings(FormattedBase):
     @field_validator("logdir")
     @classmethod
     def check_path(cls, logdir: Path) -> Path:  # noqa: N805
-        if isinstance(logdir, str):  # type: ignore
-            logdir = Path(logdir)  # type: ignore
-        if not logdir.resolve().exists():  # type: ignore
+        if isinstance(logdir, str):
+            logdir = Path(logdir)
+        if not logdir.resolve().exists():
             logdir.mkdir(parents=True)
             logger.info(f"Created logdir {logdir.absolute()}")
         return logdir

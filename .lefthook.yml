@@ -5,20 +5,20 @@ pre-commit:
       glob: '*.py'
       run: isort {staged_files}
       stage_fixed: true
-    black:
+    format:
       files: git ls-files
       glob: '*.{py, ipynb}'
       run: ruff format {staged_files}
       stage_fixed: true
-    ruff:
+    lint:
       files: git ls-files
       glob: '*.py'
       run: ruff check {staged_files} --fix
       stage_fixed: true
-    mypy:
+    typecheck:
       files: git ls-files
       glob: '*.py'
-      run: mypy {staged_files}
+      run: ty check {staged_files}
       stage_fixed: true
     test:
       run: pytest
@@ -29,17 +29,17 @@ pre-merge:
       glob: '*.py'
       run: isort {all_files}
       stage_fixed: true
-    black:
+    format:
       glob: '*.{py, ipynb}'
       run: ruff format {all_files}
       stage_fixed: true
-    ruff:
+    lint:
       glob: '*.py'
       run: ruff check {all_files} --fix
       stage_fixed: true
-    mypy:
+    typecheck:
       glob: '*.py'
-      run: mypy {staged_files}
+      run: ty check {staged_files}
       stage_fixed: true
     test:
       run: pytest

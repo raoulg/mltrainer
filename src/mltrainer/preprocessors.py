@@ -21,5 +21,5 @@ class PaddedPreprocessor(PreprocessorProtocol):
         self, batch: list[tuple[torch.Tensor, torch.Tensor]]
     ) -> tuple[torch.Tensor, torch.Tensor]:
         X, y = zip(*batch)
-        X_ = pad_sequence(X, batch_first=True, padding_value=0)  # type: ignore
+        X_ = pad_sequence(X, batch_first=True, padding_value=0)
         return X_, torch.tensor(y)

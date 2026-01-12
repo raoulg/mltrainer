@@ -52,9 +52,7 @@ class Trainer:
         if self.device:
             self.model.to(self.device)
 
-        self.optimizer = optimizer(  # type: ignore
-            model.parameters(), **settings.optimizer_kwargs
-        )
+        self.optimizer = optimizer(model.parameters(), **settings.optimizer_kwargs)
         self.last_epoch = 0
 
         if scheduler:
@@ -97,13 +95,13 @@ class Trainer:
             self.report(epoch, train_loss, test_loss, metric_dict)
 
             if self.early_stopping:
-                self.early_stopping(test_loss, self.model)  # type: ignore
+                self.early_stopping(test_loss, self.model)
 
             if self.early_stopping is not None and self.early_stopping.early_stop:
                 logger.info("Interrupting loop due to early stopping patience.")
                 self.last_epoch = epoch
                 if self.early_stopping.save:
-                    self.model = self.early_stopping.get_best()  # type: ignore
+                    self.model = self.early_stopping.get_best()
                 else:
                     logger.info(
                         "early_stopping_save was false, using latest model."
@@ -119,8 +117,12 @@ class Trainer:
         for _ in tqdm(range(train_steps), colour="#1e4706"):
             x, y = next(iter(self.traindataloader))
             if self.device:
-                x, y = x.to(self.device), y.to(self.device)
-            self.optimizer.zero_grad()  # type: ignore
+                if isinstance(x, tuple):
+                    x = tuple(xx.to(self.device) for xx in x)
+                    y = y.to(self.device)
+                else:
+                    x, y = x.to(self.device), y.to(self.device)
+            self.optimizer.zero_grad()
             yhat = self.model(x)
             loss = self.loss_fn(yhat, y)
             loss.backward()
@@ -179,7 +181,7 @@ class Trainer:
         self.test_loss = test_loss
 
         if ReportTypes.RAY in reporttypes:
-            ray.train.report(  # type: ignore
+            ray.train.report(
                 {
                     "iterations": epoch,
                     "train_loss": train_loss,
@@ -242,10 +244,10 @@ class EarlyStopping:
     def __call__(self, val_loss: float, model: torch.nn.Module) -> None:
         # first epoch best_loss is still None
         if self.best_loss is None:
-            self.best_loss = val_loss  # type: ignore
+            self.best_loss = val_loss
             if self.save:
                 self.save_checkpoint(val_loss, model)
-        elif val_loss + self.delta >= self.best_loss:  # type: ignore
+        elif val_loss + self.delta >= self.best_loss:
             # we minimize loss. If current loss did not improve
             # the previous best (with a delta) it is considered not to improve.
             self.counter += 1
