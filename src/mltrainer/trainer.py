@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Callable, Dict, Iterator, Optional, Tuple, Type, TypeVar
 
 import mlflow
-import ray
 import torch
 from loguru import logger
 from tomlserializer import TOMLSerializer
@@ -185,6 +184,13 @@ class Trainer:
         self.test_loss = test_loss
 
         if ReportTypes.RAY in reporttypes:
+            try:
+                import ray
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError(
+                    "ray is required for RAY reporting. "
+                    "Install it with: uv add 'mltrainer[tune]'"
+                )
             ray.train.report(
                 {
                     "iterations": epoch,

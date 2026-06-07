@@ -1,14 +1,14 @@
 
 [project]
 name = "mltrainer"
-version = "0.2.7.1"
+version = "0.3.0"
 description = "toolkit for training pytorch models"
 
 authors = [
     {name = "R.Grouls", email = "Raoul.Grouls@han.nl"},
 ]
 
-requires-python = ">=3.11,<=3.12"
+requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "MIT"}
 
@@ -26,14 +26,16 @@ dependencies = [
     "psutil>=7.0.0",
     "pydantic>=1.10.9",
     "pytest-cov>=6.0.0",
-    "ray[tune]>=2.5.1",
     "tensorboard>=2.18.0",
     "tomlserializer>=0.3.0",
-    "torch>=2.0.1",
+    "torch>=2.6.0",
     "torch-tb-profiler>=0.4.1",
-    "torchvision>=0.15.2",
+    "torchvision>=0.21.0",
     "tqdm>=4.65.0",
 ]
+
+[project.optional-dependencies]
+tune = ["ray[tune]>=2.45.0"]
 
 [build-system]
 requires = ["hatchling"]

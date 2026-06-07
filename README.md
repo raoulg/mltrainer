@@ -21,6 +21,21 @@ uv add mltrainer # recommended
 pip install mltrainer # i cant stop you
 ```
 
+Distributed hypertuning with Ray is an optional extra (it pulls in `ray` and friends).
+You will need it if you want to hypertune with ray, and want to use `ReportTypes.RAY`:
+```bash
+uv add 'mltrainer[tune]'
+```
+
+## 🖥️ Platform Support
+
+mltrainer runs on **Linux, Windows, and Apple Silicon (M-series) Macs**, on **Python 3.11–3.13**.
+
+Intel Macs (x86_64) are not supported because `torch` and `ray` releases stopped publishing macOS x86_64 wheels (PyTorch's last
+Intel-Mac wheel was `2.2.2`). 
+
+Workaround are using either earlier versions of mltrainer, or creating your own pyproject.toml with torch/ray version that work on your machine.
+
 ## 🎯 Quick Start
 
 Here's a simple example using a CNN model with MNIST:
@@ -70,7 +85,7 @@ The package supports multiple reporting backends:
 - 📈 **TENSORBOARD**: Real-time training visualization
 - 📝 **TOML**: Configuration and model architecture serialization. See https://pypi.org/project/tomlserializer/ for details
 - 📊 **MLFLOW**: Experiment tracking and model management
-- 🔄 **RAY**: Distributed training support
+- 🔄 **RAY**: Distributed training support (requires the `tune` extra: `uv add 'mltrainer[tune]'`)
 
 Configure them in TrainerSettings:
 ```python
