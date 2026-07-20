@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterator, Union
+from typing import Iterator, Literal, Union
 
 import numpy as np
 import torch
@@ -86,7 +86,12 @@ class Accuracy(Metric):
 
 
 class F1Score(Metric):
-    def __init__(self, average="micro", threshold=0.5, epsilon=1e-7):
+    def __init__(
+        self,
+        average: Literal["micro", "macro"] = "micro",
+        threshold: float = 0.5,
+        epsilon: float = 1e-7,
+    ) -> None:
         self.average = average
         self.threshold = threshold
         self.epsilon = epsilon

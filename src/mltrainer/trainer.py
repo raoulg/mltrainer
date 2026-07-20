@@ -1,6 +1,8 @@
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, Iterator, Optional, Tuple, Type, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import mlflow
 import torch
@@ -11,10 +13,17 @@ from tqdm import tqdm
 
 from mltrainer import ReportTypes, TrainerSettings
 
+if TYPE_CHECKING:
+    from torch.utils.tensorboard.writer import SummaryWriter
+
 OptimizerType = TypeVar("OptimizerType", bound=torch.optim.Optimizer)
 
+# A batch input is either a single tensor or a tuple of tensors (e.g. packed
+# sequences); the target is always a tensor.
+BatchTensor = torch.Tensor | tuple[torch.Tensor, ...]
 
-def dir_add_timestamp(log_dir: Optional[Path] = None) -> Path:
+
+def dir_add_timestamp(log_dir: Path | None = None) -> Path:
     if log_dir is None:
         log_dir = Path(".")
     log_dir = Path(log_dir)
@@ -26,27 +35,110 @@ def dir_add_timestamp(log_dir: Optional[Path] = None) -> Path:
     return log_dir
 
 
+class Reporter(ABC):
+    """Reports training metrics to a single backend.
+
+    A new backend is added by subclassing (open for extension); the training
+    loop that iterates over reporters never changes (closed for modification).
+    """
+
+    @abstractmethod
+    def report(
+        self,
+        epoch: int,
+        train_loss: float,
+        test_loss: float,
+        metric_dict: dict[str, float],
+    ) -> None: ...
+
+
+class RayReporter(Reporter):
+    def __init__(self) -> None:
+        try:
+            import ray
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                "ray is required for RAY reporting. "
+                "Install it with: uv add 'mltrainer[tune]'"
+            )
+        self._ray = ray
+
+    def report(
+        self,
+        epoch: int,
+        train_loss: float,
+        test_loss: float,
+        metric_dict: dict[str, float],
+    ) -> None:
+        self._ray.train.report(  # ty: ignore[possibly-missing-attribute]
+            {
+                "iterations": epoch,
+                "train_loss": train_loss,
+                "test_loss": test_loss,
+                **metric_dict,
+            }
+        )
+
+
+class MLflowReporter(Reporter):
+    def __init__(self, optimizer: Optimizer) -> None:
+        self.optimizer = optimizer
+
+    def report(
+        self,
+        epoch: int,
+        train_loss: float,
+        test_loss: float,
+        metric_dict: dict[str, float],
+    ) -> None:
+        mlflow.log_metric("Loss/train", train_loss, step=epoch)
+        mlflow.log_metric("Loss/test", test_loss, step=epoch)
+        for m in metric_dict:
+            mlflow.log_metric(f"metric/{m}", metric_dict[m], step=epoch)
+        lr = self.optimizer.param_groups[0]["lr"]
+        mlflow.log_metric("learning_rate", lr, step=epoch)
+
+
+class TensorBoardReporter(Reporter):
+    def __init__(self, writer: "SummaryWriter", optimizer: Optimizer) -> None:
+        self.writer = writer
+        self.optimizer = optimizer
+
+    def report(
+        self,
+        epoch: int,
+        train_loss: float,
+        test_loss: float,
+        metric_dict: dict[str, float],
+    ) -> None:
+        self.writer.add_scalar("Loss/train", train_loss, epoch)
+        self.writer.add_scalar("Loss/test", test_loss, epoch)
+        for m in metric_dict:
+            self.writer.add_scalar(f"metric/{m}", metric_dict[m], epoch)
+        lr = self.optimizer.param_groups[0]["lr"]
+        self.writer.add_scalar("learning_rate", lr, epoch)
+
+
 class Trainer:
     def __init__(
         self,
         model: torch.nn.Module,
         settings: TrainerSettings,
         loss_fn: Callable,
-        optimizer: Type[Optimizer],
+        optimizer: type[Optimizer],
         traindataloader: Iterator,
         validdataloader: Iterator,
-        scheduler: Optional[Callable],
-        device: Optional[str] = None,
+        scheduler: Callable | None,
+        device: str | None = None,
     ) -> None:
         self.model = model
         self.settings = settings
         self.log_dir = dir_add_timestamp(settings.logdir)
         self.loss_fn = loss_fn
-        self.optimizer = optimizer
         self.traindataloader = traindataloader
         self.validdataloader = validdataloader
         self.device = device
-        self.writer = None
+        self.writer: "SummaryWriter | None" = None
 
         if self.device:
             self.model.to(self.device)
@@ -66,7 +158,7 @@ class Trainer:
                 "Found earlystop_kwargs in settings."
                 "Set to None if you dont want earlystopping."
             )
-            self.early_stopping: Optional[EarlyStopping] = EarlyStopping(
+            self.early_stopping: EarlyStopping | None = EarlyStopping(
                 self.log_dir, **settings.earlystop_kwargs
             )
         else:
@@ -80,6 +172,34 @@ class Trainer:
         if ReportTypes.TOML in self.settings.reporttypes:
             TOMLSerializer.save(model, self.log_dir / "model.toml")
             TOMLSerializer.save(settings, self.log_dir / "settings.toml")
+
+        self.reporters = self._build_reporters()
+
+    def _build_reporters(self) -> list[Reporter]:
+        """Map the requested report types onto reporter objects once, so the
+        per-epoch report loop stays closed for modification."""
+        reporters: list[Reporter] = []
+        if ReportTypes.RAY in self.settings.reporttypes:
+            reporters.append(RayReporter())
+        if ReportTypes.MLFLOW in self.settings.reporttypes:
+            reporters.append(MLflowReporter(self.optimizer))
+        if ReportTypes.TENSORBOARD in self.settings.reporttypes:
+            assert self.writer is not None
+            reporters.append(TensorBoardReporter(self.writer, self.optimizer))
+        return reporters
+
+    def _to_device(
+        self, x: BatchTensor, y: torch.Tensor
+    ) -> tuple[BatchTensor, torch.Tensor]:
+        """Move a batch onto self.device, handling tuple inputs (e.g. packed
+        sequences) as well as single tensors."""
+        if not self.device:
+            return x, y
+        if isinstance(x, tuple):
+            x = tuple(xx.to(self.device) for xx in x)
+        else:
+            x = x.to(self.device)
+        return x, y.to(self.device)
 
     def __del__(self):
         """Cleanup method to ensure proper resource handling"""
@@ -115,38 +235,28 @@ class Trainer:
         train_steps = self.settings.train_steps
         for _ in tqdm(range(train_steps), colour="#1e4706"):
             x, y = next(iter(self.traindataloader))
-            if self.device:
-                if isinstance(x, tuple):
-                    x = tuple(xx.to(self.device) for xx in x)
-                    y = y.to(self.device)
-                else:
-                    x, y = x.to(self.device), y.to(self.device)
+            x, y = self._to_device(x, y)
             self.optimizer.zero_grad()
             yhat = self.model(x)
             loss = self.loss_fn(yhat, y)
             loss.backward()
-            self.optimizer.step()  # type: ignore
+            self.optimizer.step()
             train_loss += loss.cpu().detach().numpy()
         train_loss /= train_steps
 
         return train_loss
 
-    def evalbatches(self) -> Tuple[Dict[str, float], float]:
+    def evalbatches(self) -> tuple[dict[str, float], float]:
         """Evaluate model on validation data with proper device handling"""
         self.model.eval()
         valid_steps = self.settings.valid_steps
         test_loss: float = 0.0
-        metric_dict: Dict[str, float] = {}
+        metric_dict: dict[str, float] = {}
 
         with torch.no_grad():  # Prevent gradient computation during evaluation
             for _ in range(valid_steps):
                 x, y = next(iter(self.validdataloader))
-                if self.device:
-                    if isinstance(x, tuple):
-                        x = tuple(xx.to(self.device) for xx in x)
-                        y = y.to(self.device)
-                    else:
-                        x, y = x.to(self.device), y.to(self.device)
+                x, y = self._to_device(x, y)
 
                 # Forward pass
                 yhat = self.model(x)
@@ -161,7 +271,7 @@ class Trainer:
         # Average the results
         test_loss /= valid_steps
         for key in metric_dict:
-            metric_dict[str(key)] = metric_dict[str(key)] / valid_steps
+            metric_dict[key] = metric_dict[key] / valid_steps
 
         # Handle scheduler
         if self.scheduler:
@@ -172,54 +282,32 @@ class Trainer:
 
         return metric_dict, test_loss
 
-    def report(
-        self, epoch: int, train_loss: float, test_loss: float, metric_dict: Dict
-    ) -> None:
-        if (self.last_epoch != 0) and (epoch == 0):
+    def _resolve_epoch(self, epoch: int) -> int:
+        """Offset the epoch counter when resuming a previous training run."""
+        if self.last_epoch != 0 and epoch == 0:
             self.last_epoch += 1
             logger.info(f"Resuming epochs from previous training at {self.last_epoch}")
         if self.last_epoch != 0:
             epoch += self.last_epoch
-        reporttypes = self.settings.reporttypes
+        return epoch
+
+    def report(
+        self,
+        epoch: int,
+        train_loss: float,
+        test_loss: float,
+        metric_dict: dict[str, float],
+    ) -> None:
+        epoch = self._resolve_epoch(epoch)
         self.test_loss = test_loss
 
-        if ReportTypes.RAY in reporttypes:
-            try:
-                import ray
-            except ModuleNotFoundError:
-                raise ModuleNotFoundError(
-                    "ray is required for RAY reporting. "
-                    "Install it with: uv add 'mltrainer[tune]'"
-                )
-            ray.train.report(
-                {
-                    "iterations": epoch,
-                    "train_loss": train_loss,
-                    "test_loss": test_loss,
-                    **metric_dict,
-                }
-            )
-
-        if ReportTypes.MLFLOW in reporttypes:
-            mlflow.log_metric("Loss/train", train_loss, step=epoch)
-            mlflow.log_metric("Loss/test", test_loss, step=epoch)
-            for m in metric_dict:
-                mlflow.log_metric(f"metric/{m}", metric_dict[m], step=epoch)
-            lr = [group["lr"] for group in self.optimizer.param_groups][0]  # type: ignore
-            mlflow.log_metric("learning_rate", lr, step=epoch)
-
-        if ReportTypes.TENSORBOARD in reporttypes:
-            assert self.writer is not None
-            self.writer.add_scalar("Loss/train", train_loss, epoch)
-            self.writer.add_scalar("Loss/test", test_loss, epoch)
-            for m in metric_dict:
-                self.writer.add_scalar(f"metric/{m}", metric_dict[m], epoch)
-            lr = [group["lr"] for group in self.optimizer.param_groups][0]  # type: ignore
-            self.writer.add_scalar("learning_rate", lr, epoch)
+        for reporter in self.reporters:
+            reporter.report(epoch, train_loss, test_loss, metric_dict)
 
         metric_scores = [f"{v:.4f}" for v in metric_dict.values()]
         logger.info(
-            f"Epoch {epoch} train {train_loss:.4f} test {test_loss:.4f} metric {metric_scores}"  # noqa E501
+            f"Epoch {epoch} train {train_loss:.4f} test {test_loss:.4f} "
+            f"metric {metric_scores}"
         )
 
 

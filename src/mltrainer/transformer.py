@@ -21,6 +21,9 @@ class PositionalEncoding(nn.Module):
     It adds positional information to the input embeddings.
     """
 
+    pe: Tensor  # registered as a buffer in __init__; annotated so type checkers
+    # know it is a Tensor rather than a generic Module attribute.
+
     def __init__(self, d_model: int, dropout: float = 0.1, max_seq_len: int = 5000):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)

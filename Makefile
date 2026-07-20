@@ -1,7 +1,12 @@
 format:
-	black mltrainer
-	isort mltrainer
+	ruff format src
+	ruff check --fix src
 
 lint:
-	flake8 mltrainer
-	mypy mltrainer
+	ruff check src
+	ty check src
+
+test:
+	pytest
+
+.PHONY: format lint test
