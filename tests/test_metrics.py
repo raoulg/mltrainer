@@ -254,3 +254,89 @@ def test_mase_minimum_data():
     mase = MASE(train_data, horizon=2)
     assert not torch.isnan(mase.scale)
     assert mase.scale > 0
+
+
+# ---------------------------------------------------------------------------
+# MASE over things that are not a mads_datasets streamer.
+#
+# `_calculate_scale` used to be written against BaseDatastreamer: it called
+# `train.stream()`, needed `len(train)`, and pulled batches with
+# `next(iter(streamer))`. None of that works on a torch DataLoader, and the
+# last one is the per-step iterator-rebuild bug fixed in Trainer._next_batch.
+# ---------------------------------------------------------------------------
+
+
+class SeriesDataset(torch.utils.data.Dataset):
+    """Windowed series: x is (seq_length, 1), y is the next `horizon` steps.
+
+    Each item is built from its own index, so no two batches are alike.
+    """
+
+    def __init__(self, n: int = 8, seq_length: int = 5, horizon: int = 2):
+        self.n, self.seq_length, self.horizon = n, seq_length, horizon
+
+    def __len__(self):
+        return self.n
+
+    def __getitem__(self, idx):
+        x = torch.full((self.seq_length, 1), float(idx))
+        y = torch.full((self.horizon,), float(idx) + 1.0)
+        return x, y
+
+
+def endless_batches():
+    while True:
+        yield torch.zeros(2, 3, 1), torch.ones(2, 2)
+
+
+def test_mase_accepts_a_dataloader():
+    loader = torch.utils.data.DataLoader(SeriesDataset(n=8), batch_size=2)
+
+    mase = MASE(loader, horizon=2)
+
+    # the naive forecast repeats x's last `horizon` steps, i.e. idx, while y is
+    # idx + 1 -- so every batch has an absolute error of exactly 1.0
+    assert float(mase.scale) == pytest.approx(1.0)
+
+
+def test_mase_walks_the_whole_loader_not_just_the_first_batch():
+    """The bug this guards: `next(iter(loader))` per step re-reads batch 0."""
+
+    class GrowingError(torch.utils.data.Dataset):
+        def __len__(self):
+            return 4
+
+        def __getitem__(self, idx):
+            # error for this item is idx: 0, 1, 2, 3 -> mean 1.5
+            return torch.zeros(3, 1), torch.full((2,), float(idx))
+
+    loader = torch.utils.data.DataLoader(GrowingError(), batch_size=1)
+
+    mase = MASE(loader, horizon=2)
+
+    # the first batch alone gives 0.0, which is what the old code computed
+    assert float(mase.scale) == pytest.approx(1.5)
+
+
+def test_mase_accepts_a_plain_generator_with_n_batches():
+    mase = MASE(endless_batches(), horizon=2, n_batches=3)
+    assert float(mase.scale) == pytest.approx(1.0)
+
+
+def test_mase_refuses_an_unbounded_iterable_without_n_batches():
+    with pytest.raises(ValueError, match="n_batches"):
+        MASE(endless_batches(), horizon=2)
+
+
+def test_mase_n_batches_bounds_a_legacy_streamer():
+    x = torch.ones(2, 5, 1)
+    y = torch.ones(2, 2) * 2
+    train_data = MockTrainIterator([(x, y)] * 4)
+
+    mase = MASE(train_data, horizon=2, n_batches=2)
+    assert not torch.isnan(mase.scale)
+
+
+def test_mase_rejects_an_empty_iterable():
+    with pytest.raises(ValueError, match="no batches"):
+        MASE([], horizon=2)

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterator, Literal, Union
+from collections.abc import Iterable
+from itertools import islice
+from typing import Literal, Union
 
 import numpy as np
 import torch
@@ -50,19 +52,56 @@ class MAE(Metric):
 
 
 class MASE(Metric):
-    def __init__(self, train: Iterator, horizon: int) -> None:
+    """Mean Absolute Scaled Error.
+
+    The scale is the MAE of a naive "repeat the last `horizon` observations"
+    forecast over the training data, so a MASE of 1.0 means "no better than
+    naive".
+
+    `train` is any iterable of `(x, y)` batches: a torch `DataLoader`, a plain
+    generator, or a legacy datastreamer exposing `.stream()`. Pass `n_batches`
+    to bound how much of it is consumed -- required when the iterable is
+    infinite and does not report a length.
+    """
+
+    def __init__(
+        self, train: Iterable, horizon: int, n_batches: int | None = None
+    ) -> None:
         self.horizon = horizon
         with torch.no_grad():
-            self.scale = self._calculate_scale(train)
+            self.scale = self._calculate_scale(train, n_batches)
 
-    def _calculate_scale(self, train: Iterator) -> torch.Tensor:
+    def _batches(self, train: Iterable, n_batches: int | None) -> Iterable:
+        """Bound `train` to a finite number of batches.
+
+        Note what this deliberately does *not* do: call `next(iter(train))` in a
+        loop. `iter()` on an iterable such as a DataLoader hands back a fresh
+        iterator every call, so that idiom would score the first batch over and
+        over (the same bug fixed in `Trainer._next_batch`).
+        """
+        if hasattr(train, "stream"):
+            # legacy datastreamer: .stream() is endless, __len__ counts batches
+            n = n_batches if n_batches is not None else len(train)  # type: ignore[arg-type]
+            return islice(train.stream(), n)  # type: ignore[attr-defined]
+        if n_batches is not None:
+            return islice(train, n_batches)
+        if not hasattr(train, "__len__"):
+            raise ValueError(
+                "MASE cannot tell how much of this iterable to consume. "
+                "Pass n_batches=... , or hand it something with a length "
+                "(e.g. a DataLoader)."
+            )
+        return train
+
+    def _calculate_scale(
+        self, train: Iterable, n_batches: int | None = None
+    ) -> torch.Tensor:
         elist = []
-        streamer = train.stream()  # type: ignore
-        for _ in range(len(train)):  # type: ignore
-            x, y = next(iter(streamer))
+        for x, y in self._batches(train, n_batches):
             yhat = self._naive_predict(x)
-            e = torch.mean(torch.abs(y - yhat))
-            elist.append(e)
+            elist.append(torch.mean(torch.abs(y - yhat)))
+        if not elist:
+            raise ValueError("MASE got no batches from `train`; cannot scale.")
         return torch.mean(torch.stack(elist))
 
     def _naive_predict(self, x: torch.Tensor) -> torch.Tensor:
