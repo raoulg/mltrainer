@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
@@ -126,8 +126,8 @@ class Trainer:
         settings: TrainerSettings,
         loss_fn: Callable,
         optimizer: type[Optimizer],
-        traindataloader: Iterator,
-        validdataloader: Iterator,
+        traindataloader: Iterable,
+        validdataloader: Iterable,
         scheduler: Callable | None,
         device: str | None = None,
     ) -> None:
@@ -137,6 +137,8 @@ class Trainer:
         self.loss_fn = loss_fn
         self.traindataloader = traindataloader
         self.validdataloader = validdataloader
+        self._train_iter: Iterator | None = None
+        self._valid_iter: Iterator | None = None
         self.device = device
         self.writer: "SummaryWriter | None" = None
 
@@ -201,6 +203,33 @@ class Trainer:
             x = x.to(self.device)
         return x, y.to(self.device)
 
+    def _next_batch(
+        self, loader: Iterable, cache: str
+    ) -> tuple[BatchTensor, torch.Tensor]:
+        """Pull one batch, keeping the iterator alive across steps.
+
+        `next(iter(loader))` per step is only correct for an *iterator* -- a
+        streamer -- because `iter()` on an iterator returns itself. A torch
+        DataLoader is an *iterable*: it hands out a fresh iterator (and, with
+        num_workers > 0, a fresh worker pool) on every call, so a training
+        loader would reshuffle and replay its first batch every step, and a
+        validation loader would score the same first batch `valid_steps` times.
+
+        Holding the iterator and re-`iter`ing it only when it is exhausted
+        works for both: an infinite streamer never raises StopIteration, and a
+        finite DataLoader wraps around into its next epoch.
+        """
+        it = getattr(self, cache)
+        if it is None:
+            it = iter(loader)
+            setattr(self, cache, it)
+        try:
+            return next(it)
+        except StopIteration:
+            it = iter(loader)
+            setattr(self, cache, it)
+            return next(it)
+
     def __del__(self):
         """Cleanup method to ensure proper resource handling"""
         if hasattr(self, "writer") and self.writer is not None:
@@ -234,7 +263,7 @@ class Trainer:
         train_loss: float = 0.0
         train_steps = self.settings.train_steps
         for _ in tqdm(range(train_steps), colour="#1e4706"):
-            x, y = next(iter(self.traindataloader))
+            x, y = self._next_batch(self.traindataloader, "_train_iter")
             x, y = self._to_device(x, y)
             self.optimizer.zero_grad()
             yhat = self.model(x)
@@ -255,7 +284,7 @@ class Trainer:
 
         with torch.no_grad():  # Prevent gradient computation during evaluation
             for _ in range(valid_steps):
-                x, y = next(iter(self.validdataloader))
+                x, y = self._next_batch(self.validdataloader, "_valid_iter")
                 x, y = self._to_device(x, y)
 
                 # Forward pass
