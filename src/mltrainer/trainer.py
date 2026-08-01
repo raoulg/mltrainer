@@ -30,8 +30,10 @@ def dir_add_timestamp(log_dir: Path | None = None) -> Path:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     log_dir = log_dir / timestamp
     logger.info(f"Logging to {log_dir}")
-    if not log_dir.exists():
-        log_dir.mkdir(parents=True)
+    # exist_ok: under ray tune, parallel trials construct their Trainer in the
+    # same wall-clock second and collide on this second-resolution timestamp;
+    # the check-then-create above is not atomic against that.
+    log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir
 
 
