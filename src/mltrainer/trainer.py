@@ -53,15 +53,25 @@ class Reporter(ABC):
 
 
 class RayReporter(Reporter):
+    """Reports metrics to Ray Tune from inside a trial.
+
+    Note this uses `ray.tune.report`, not `ray.train.report`. `ray.train` is the
+    distributed-training library; `ray.tune` is the hypertuner. Since ray 2.43
+    (Train V2), calling `ray.train.report` from inside a tune trainable raises a
+    DeprecationWarning instead of reporting -- and because the trial dies during
+    process teardown, ray usually surfaces it as an opaque
+    "worker crashed unexpectedly (SYSTEM_ERROR)" rather than as that message.
+    """
+
     def __init__(self) -> None:
         try:
-            import ray
+            from ray import tune
         except ModuleNotFoundError:
             raise ModuleNotFoundError(
                 "ray is required for RAY reporting. "
                 "Install it with: uv add 'mltrainer[tune]'"
             )
-        self._ray = ray
+        self._tune = tune
 
     def report(
         self,
@@ -70,7 +80,7 @@ class RayReporter(Reporter):
         test_loss: float,
         metric_dict: dict[str, float],
     ) -> None:
-        self._ray.train.report(  # ty: ignore[possibly-missing-attribute]
+        self._tune.report(
             {
                 "iterations": epoch,
                 "train_loss": train_loss,

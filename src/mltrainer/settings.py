@@ -56,6 +56,9 @@ class TrainerSettings(FormattedBase):
         if isinstance(logdir, str):
             logdir = Path(logdir)
         if not logdir.resolve().exists():
-            logdir.mkdir(parents=True)
+            # exist_ok: ray tune runs trials in parallel processes, and two of them
+            # constructing settings with the same fresh logdir will race between the
+            # check above and this call -- the loser died with FileExistsError.
+            logdir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Created logdir {logdir.absolute()}")
         return logdir

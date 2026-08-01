@@ -1,7 +1,7 @@
 
 [project]
 name = "mltrainer"
-version = "0.3.4"
+version = "0.3.5"
 description = "toolkit for training pytorch models"
 
 authors = [
@@ -69,6 +69,7 @@ addopts = "-ra -v --cov=mltrainer --cov-report=term-missing"
 testpaths = ["tests"]
 markers = [
     "tensorboard: marks tests that use tensorboard functionality",
+    "ray: marks tests that start a real ray cluster (slow; run with -m ray)",
 ]
 
 [tool.coverage.run]
